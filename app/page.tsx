@@ -113,9 +113,9 @@ export default async function Home() {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
         {/* Left Column - Services Status */}
-        <div className="p-5 bg-white border border-stripe-border rounded-md">
+        <div className="p-5 bg-white border border-stripe-border rounded-md flex flex-col">
           <div className="flex justify-between items-center mb-5 pb-4 border-b border-stripe-border">
             <h2 className="text-sm font-semibold text-stripe-dark m-0">
               Services
@@ -165,7 +165,7 @@ export default async function Home() {
 
         {/* Right Column - Supabase Studio & Next Steps */}
         <div className="flex flex-col gap-6">
-          <div className="p-5 bg-white border border-stripe-border rounded-md">
+          <div className="p-5 bg-white border border-stripe-border rounded-md flex-1">
             <h2 className="text-sm font-semibold text-stripe-dark mb-4">
               Supabase Studio
             </h2>
@@ -205,7 +205,7 @@ export default async function Home() {
             </div>
           </div>
 
-          <div className="p-5 bg-white border border-stripe-border rounded-md">
+          <div className="p-5 bg-white border border-stripe-border rounded-md flex-1">
             <h2 className="text-sm font-semibold text-stripe-dark mb-4">
               Next steps
             </h2>
