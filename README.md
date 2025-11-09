@@ -101,6 +101,7 @@ This boilerplate uses **client-side authentication** for reliable cookie handlin
 ### Key Features
 
 - ✅ Client-side authentication (reliable cookie handling)
+- ✅ OAuth providers (Google, X/Twitter, LinkedIn)
 - ✅ Automatic session refresh via middleware
 - ✅ Protected routes with automatic redirects
 - ✅ Auto-redirect authenticated users away from auth pages
@@ -149,6 +150,16 @@ All configuration is in the `.env` file. Key variables:
 For development, set `ENABLE_EMAIL_AUTOCONFIRM=true` in your `.env` file to bypass email confirmation.
 
 For production, configure SMTP settings in `docker-compose.yml` (see [Documentation/EMAIL_SETUP.md](./Documentation/EMAIL_SETUP.md)).
+
+### OAuth Configuration
+
+The boilerplate supports OAuth authentication with Google, X (Twitter), and LinkedIn. To enable OAuth:
+
+1. Configure OAuth providers in your OAuth provider dashboards
+2. Add OAuth credentials to your `.env` file
+3. Enable providers by setting `GOTRUE_EXTERNAL_*_ENABLED=true`
+
+See [Documentation/OAUTH_SETUP.md](./Documentation/OAUTH_SETUP.md) for detailed setup instructions.
 
 ## 🌐 Accessing Services
 
