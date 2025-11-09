@@ -2,6 +2,7 @@ import { createServerComponentClient } from '@/lib/supabase/server'
 import { redirect } from 'next/navigation'
 import Link from 'next/link'
 import { AuthForm } from '@/app/components/AuthForm'
+import { ROUTES } from '@/lib/routes'
 
 export default async function SignUpPage() {
   const supabase = await createServerComponentClient()
@@ -10,7 +11,7 @@ export default async function SignUpPage() {
   } = await supabase.auth.getUser()
 
   if (user) {
-    redirect('/dashboard')
+    redirect(ROUTES.DASHBOARD)
   }
 
   return (
@@ -30,7 +31,7 @@ export default async function SignUpPage() {
 
           <div className="mt-6 text-center text-sm text-stripe-gray">
             Already have an account?{' '}
-            <Link href="/login" className="text-stripe-purple hover:underline">
+            <Link href={ROUTES.LOGIN} className="text-stripe-purple hover:underline">
               Sign in
             </Link>
           </div>

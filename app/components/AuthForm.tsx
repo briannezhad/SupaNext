@@ -1,9 +1,9 @@
 'use client'
 
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import { createClientComponentClient } from '@/lib/supabase/client'
+import { ROUTES } from '@/lib/routes'
 
 interface AuthFormProps {
   mode: 'signin' | 'signup' | 'forgot-password'
@@ -14,7 +14,6 @@ interface AuthFormWithRedirectProps extends AuthFormProps {
 }
 
 export function AuthForm({ mode, redirectTo }: AuthFormWithRedirectProps) {
-  const router = useRouter()
   const supabase = createClientComponentClient()
   const [error, setError] = useState<string | null>(null)
   const [message, setMessage] = useState<string | null>(null)
@@ -45,20 +44,26 @@ export function AuthForm({ mode, redirectTo }: AuthFormWithRedirectProps) {
         }
 
         // Wait a moment for cookies to be fully set, then redirect
-        const target = redirectToValue || redirectTo || '/dashboard'
+        const target = redirectToValue || redirectTo || ROUTES.DASHBOARD
         
         // Verify session one more time
         const { data: { session: finalSession } } = await supabase.auth.getSession()
         
         if (finalSession) {
-          // Use router.push with a hard refresh
-          router.push(target)
-          // Also force a hard reload as backup
-          setTimeout(() => {
-            if (window.location.pathname !== target) {
-              window.location.href = target
-            }
-          }, 500)
+          // Clear loading state first
+          setIsLoading(false)
+          
+          // Wait for cookies to be fully written
+          await new Promise(resolve => setTimeout(resolve, 100))
+          
+          // Use a more reliable redirect method
+          // Force a full page reload to ensure middleware sees the session
+          if (target.startsWith('/')) {
+            // Absolute path - use full URL
+            window.location.href = `${window.location.origin}${target}`
+          } else {
+            window.location.href = target
+          }
         } else {
           setError('Session not established. Please try again.')
           setIsLoading(false)
@@ -80,11 +85,11 @@ export function AuthForm({ mode, redirectTo }: AuthFormWithRedirectProps) {
 
         // Success - redirect to dashboard
         setTimeout(() => {
-          window.location.href = '/dashboard'
+          window.location.href = ROUTES.DASHBOARD
         }, 100)
       } else if (mode === 'forgot-password') {
         const { error: resetError } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: `${window.location.origin}/auth/reset-password`,
+          redirectTo: `${window.location.origin}${ROUTES.AUTH_RESET_PASSWORD}`,
         })
 
         if (resetError) {
@@ -164,7 +169,7 @@ export function AuthForm({ mode, redirectTo }: AuthFormWithRedirectProps) {
             <div className="flex items-center justify-between">
               <div className="text-sm">
                 <Link
-                  href="/forgot-password"
+                  href={ROUTES.FORGOT_PASSWORD}
                   className="text-stripe-purple hover:underline"
                 >
                   Forgot password?

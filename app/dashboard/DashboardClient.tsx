@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@/lib/supabase/client'
+import { ROUTES } from '@/lib/routes'
 import type { User } from '@supabase/supabase-js'
 
 export function DashboardClient() {
@@ -26,7 +27,7 @@ export function DashboardClient() {
         setLoading(false)
       } else {
         // No session, redirect to login
-        router.push('/login?redirectTo=/dashboard')
+        router.push(`${ROUTES.LOGIN}?redirectTo=${ROUTES.DASHBOARD}`)
       }
     }
 
@@ -38,7 +39,7 @@ export function DashboardClient() {
       if (event === 'SIGNED_OUT') {
         setUser(null)
         setLoading(false)
-        router.push('/login')
+        router.push(ROUTES.LOGIN)
         return
       }
       
@@ -47,7 +48,7 @@ export function DashboardClient() {
         setLoading(false)
       } else if (!isSigningOut) {
         // Only redirect if not in the process of signing out
-        router.push('/login?redirectTo=/dashboard')
+        router.push(`${ROUTES.LOGIN}?redirectTo=${ROUTES.DASHBOARD}`)
       }
     })
 
@@ -97,11 +98,11 @@ export function DashboardClient() {
       
       // Force a hard redirect to login to ensure clean state
       // Using replace to prevent back button from going to dashboard
-      window.location.replace('/login')
+      window.location.replace(ROUTES.LOGIN)
     } catch (err) {
       console.error('Sign out error:', err)
       // Even on error, try to redirect
-      window.location.replace('/login')
+      window.location.replace(ROUTES.LOGIN)
     }
   }
 

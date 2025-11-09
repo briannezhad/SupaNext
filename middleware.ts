@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
+import { requiresAuth, requiresGuest, getRedirectPath, ROUTES } from '@/lib/routes/config'
 
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
@@ -25,25 +26,40 @@ export async function middleware(request: NextRequest) {
   )
 
   // Refresh session - this will read cookies and refresh if needed
+  // Call getSession first to ensure cookies are read properly
+  const {
+    data: { session },
+  } = await supabase.auth.getSession()
+  
+  // Also get user to ensure we have full auth state
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
-  // Protect routes that require authentication
-  // Note: Dashboard now handles auth client-side, so we allow it through
-  // The client component will redirect if not authenticated
-  // if (request.nextUrl.pathname.startsWith('/dashboard') && !user) {
-  //   const url = request.nextUrl.clone()
-  //   url.pathname = '/login'
-  //   url.searchParams.set('redirectTo', request.nextUrl.pathname)
-  //   return NextResponse.redirect(url)
-  // }
+  const pathname = request.nextUrl.pathname
+  // User is authenticated if we have either a session or a user
+  const isAuthenticated = !!(session?.user || user)
 
-  // Redirect authenticated users away from auth pages
-  if ((request.nextUrl.pathname.startsWith('/login') || 
-       request.nextUrl.pathname.startsWith('/signup')) && user) {
+  // Dashboard uses client-side auth, so allow it through
+  // The client component will handle redirects
+  if (pathname === ROUTES.DASHBOARD) {
+    return supabaseResponse
+  }
+
+  // Use routing config to determine access
+  const redirectPath = getRedirectPath(pathname as any, isAuthenticated)
+
+  if (redirectPath) {
     const url = request.nextUrl.clone()
-    url.pathname = '/dashboard'
+    
+    // If redirecting to login, preserve the original destination
+    if (redirectPath === ROUTES.LOGIN && pathname !== ROUTES.LOGIN) {
+      url.pathname = ROUTES.LOGIN
+      url.searchParams.set('redirectTo', pathname)
+    } else {
+      url.pathname = redirectPath
+    }
+    
     return NextResponse.redirect(url)
   }
 

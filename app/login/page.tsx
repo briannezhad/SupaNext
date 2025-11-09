@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { AuthForm } from '@/app/components/AuthForm'
 import { AuthRedirect } from '@/app/components/AuthRedirect'
+import { ROUTES } from '@/lib/routes'
 
 export default async function LoginPage({
   searchParams,
@@ -20,12 +21,11 @@ export default async function LoginPage({
         </div>
 
         <div className="bg-white border border-stripe-border rounded-md p-6">
-          <AuthRedirect redirectTo={searchParams.redirectTo} />
           <AuthForm mode="signin" redirectTo={searchParams.redirectTo} />
 
           <div className="mt-6 text-center text-sm text-stripe-gray">
             Don't have an account?{' '}
-            <Link href="/signup" className="text-stripe-purple hover:underline">
+            <Link href={ROUTES.SIGNUP} className="text-stripe-purple hover:underline">
               Sign up
             </Link>
           </div>

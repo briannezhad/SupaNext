@@ -6,6 +6,7 @@ import Link from 'next/link'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@/lib/supabase/client'
+import { ROUTES } from '@/lib/routes'
 
 export default function ResetPasswordPage() {
   const router = useRouter()
@@ -18,7 +19,7 @@ export default function ResetPasswordPage() {
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) {
-        router.push('/login')
+        router.push(ROUTES.LOGIN)
       }
     }
     checkUser()
@@ -75,7 +76,7 @@ export default function ResetPasswordPage() {
           </form>
 
           <div className="mt-6 text-center text-sm text-stripe-gray">
-            <Link href="/dashboard" className="text-stripe-purple hover:underline">
+            <Link href={ROUTES.DASHBOARD} className="text-stripe-purple hover:underline">
               Back to dashboard
             </Link>
           </div>

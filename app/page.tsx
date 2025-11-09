@@ -1,6 +1,7 @@
 import { createServerComponentClient } from "@/lib/supabase/server";
 import Link from "next/link";
 import { signOut } from "@/app/actions/auth";
+import { ROUTES } from "@/lib/routes";
 
 interface ServiceStatus {
   name: string;
@@ -123,7 +124,7 @@ export default async function Home() {
           {user ? (
             <>
               <Link
-                href="/dashboard"
+                href={ROUTES.DASHBOARD}
                 className="px-4 py-2 text-sm font-medium text-stripe-dark bg-white border border-stripe-border rounded-md hover:bg-stripe-bg focus:outline-none focus:ring-2 focus:ring-stripe-purple focus:ring-offset-2 transition-colors"
               >
                 Dashboard
@@ -140,13 +141,13 @@ export default async function Home() {
           ) : (
             <>
               <Link
-                href="/login"
+                href={ROUTES.LOGIN}
                 className="px-4 py-2 text-sm font-medium text-stripe-dark bg-white border border-stripe-border rounded-md hover:bg-stripe-bg focus:outline-none focus:ring-2 focus:ring-stripe-purple focus:ring-offset-2 transition-colors"
               >
                 Sign in
               </Link>
               <Link
-                href="/signup"
+                href={ROUTES.SIGNUP}
                 className="px-4 py-2 text-sm font-medium text-white bg-stripe-purple border border-transparent rounded-md hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-stripe-purple focus:ring-offset-2 transition-colors"
               >
                 Sign up
@@ -265,7 +266,7 @@ export default async function Home() {
                 <div className="text-[13px] text-stripe-dark leading-relaxed">
                   <p className="mb-2">
                     You can now access protected routes like the{" "}
-                    <Link href="/dashboard" className="text-stripe-purple">
+                    <Link href={ROUTES.DASHBOARD} className="text-stripe-purple">
                       dashboard
                     </Link>
                     .
@@ -275,11 +276,11 @@ export default async function Home() {
             ) : (
               <ol className="pl-5 text-[13px] text-stripe-dark leading-relaxed">
                 <li className="mb-2">
-                  <Link href="/signup" className="text-stripe-purple">
+                  <Link href={ROUTES.SIGNUP} className="text-stripe-purple">
                     Create an account
                   </Link>{" "}
                   or{" "}
-                  <Link href="/login" className="text-stripe-purple">
+                  <Link href={ROUTES.LOGIN} className="text-stripe-purple">
                     sign in
                   </Link>
                 </li>

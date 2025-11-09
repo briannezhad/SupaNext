@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
 import { createServerComponentClient } from '@/lib/supabase/server'
+import { ROUTES } from '@/lib/routes'
 
 type AuthFormState = {
   error?: string
@@ -23,7 +24,7 @@ export async function signUp(prevState: AuthFormState, formData: FormData) {
     email: data.email,
     password: data.password,
     options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/callback`,
+      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}${ROUTES.AUTH_CALLBACK}`,
     },
   })
 
@@ -60,7 +61,7 @@ export async function signIn(prevState: AuthFormState, formData: FormData) {
   revalidatePath('/', 'layout')
   revalidatePath('/dashboard', 'page')
   
-  return { success: true, redirectTo: redirectTo || '/dashboard' }
+  return { success: true, redirectTo: redirectTo || ROUTES.DASHBOARD }
 }
 
 export async function signOut() {
@@ -77,7 +78,7 @@ export async function signOut() {
   revalidatePath('/dashboard', 'page')
   
   // Redirect to login
-  redirect('/login')
+  redirect(ROUTES.LOGIN)
 }
 
 export async function resetPassword(prevState: AuthFormState, formData: FormData) {
@@ -86,7 +87,7 @@ export async function resetPassword(prevState: AuthFormState, formData: FormData
   const email = formData.get('email') as string
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
-    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}/auth/reset-password`,
+    redirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}${ROUTES.AUTH_RESET_PASSWORD}`,
   })
 
   if (error) {
@@ -110,6 +111,6 @@ export async function updatePassword(prevState: AuthFormState, formData: FormDat
   }
 
   revalidatePath('/', 'layout')
-  redirect('/dashboard')
+  redirect(ROUTES.DASHBOARD)
 }
 

@@ -1,5 +1,6 @@
 import Link from 'next/link'
 import { AuthForm } from '@/app/components/AuthForm'
+import { ROUTES } from '@/lib/routes'
 
 export default function ForgotPasswordPage() {
   return (
@@ -18,7 +19,7 @@ export default function ForgotPasswordPage() {
           <AuthForm mode="forgot-password" />
 
           <div className="mt-6 text-center text-sm text-stripe-gray">
-            <Link href="/login" className="text-stripe-purple hover:underline">
+            <Link href={ROUTES.LOGIN} className="text-stripe-purple hover:underline">
               Back to sign in
             </Link>
           </div>
