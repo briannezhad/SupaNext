@@ -83,8 +83,15 @@ All configuration is in the `.env` file. Key variables:
 - `SUPABASE_SERVICE_ROLE_KEY`: Service role key (server-side only)
 - `POSTGRES_PASSWORD`: Database password
 - `JWT_SECRET`: JWT signing secret
+- `ENABLE_EMAIL_AUTOCONFIRM`: Set to `true` for development (bypasses email confirmation)
 
 **⚠️ Important**: Change all default secrets before deploying to production!
+
+### Email Configuration
+
+If you're getting "Error sending confirmation email", see [EMAIL_SETUP.md](./EMAIL_SETUP.md) for solutions:
+- **Quick fix for development**: Set `ENABLE_EMAIL_AUTOCONFIRM=true` in your `.env` file
+- **For production**: Configure SMTP settings (see guide)
 
 ## 🌐 Accessing Services
 

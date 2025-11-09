@@ -1,4 +1,6 @@
 import { createServerComponentClient } from "@/lib/supabase/server";
+import Link from "next/link";
+import { signOut } from "@/app/actions/auth";
 
 interface ServiceStatus {
   name: string;
@@ -100,17 +102,58 @@ async function getSupabaseStatus() {
 }
 
 export default async function Home() {
+  const supabase = await createServerComponentClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
   const status = await getSupabaseStatus();
 
   return (
     <main className="py-12 px-6 max-w-6xl mx-auto bg-white">
-      <div className="mb-12">
-        <h1 className="text-2xl font-semibold mb-2 text-stripe-dark tracking-tight">
-          SupaNext
-        </h1>
-        <p className="text-sm text-stripe-gray leading-normal">
-          Next.js + Supabase
-        </p>
+      <div className="mb-12 flex justify-between items-start">
+        <div>
+          <h1 className="text-2xl font-semibold mb-2 text-stripe-dark tracking-tight">
+            SupaNext
+          </h1>
+          <p className="text-sm text-stripe-gray leading-normal">
+            Next.js + Supabase
+          </p>
+        </div>
+        <div className="flex items-center gap-4">
+          {user ? (
+            <>
+              <Link
+                href="/dashboard"
+                className="px-4 py-2 text-sm font-medium text-stripe-dark bg-white border border-stripe-border rounded-md hover:bg-stripe-bg focus:outline-none focus:ring-2 focus:ring-stripe-purple focus:ring-offset-2 transition-colors"
+              >
+                Dashboard
+              </Link>
+              <form action={signOut}>
+                <button
+                  type="submit"
+                  className="px-4 py-2 text-sm font-medium text-stripe-dark bg-white border border-stripe-border rounded-md hover:bg-stripe-bg focus:outline-none focus:ring-2 focus:ring-stripe-purple focus:ring-offset-2 transition-colors"
+                >
+                  Sign out
+                </button>
+              </form>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="px-4 py-2 text-sm font-medium text-stripe-dark bg-white border border-stripe-border rounded-md hover:bg-stripe-bg focus:outline-none focus:ring-2 focus:ring-stripe-purple focus:ring-offset-2 transition-colors"
+              >
+                Sign in
+              </Link>
+              <Link
+                href="/signup"
+                className="px-4 py-2 text-sm font-medium text-white bg-stripe-purple border border-transparent rounded-md hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-stripe-purple focus:ring-offset-2 transition-colors"
+              >
+                Sign up
+              </Link>
+            </>
+          )}
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
@@ -207,15 +250,46 @@ export default async function Home() {
 
           <div className="p-5 bg-white border border-stripe-border rounded-md flex-1">
             <h2 className="text-sm font-semibold text-stripe-dark mb-4">
-              Next steps
+              {user ? "Authentication" : "Next steps"}
             </h2>
-            <ol className="pl-5 text-[13px] text-stripe-dark leading-relaxed">
-              <li className="mb-2">
-                Log in to Supabase Studio using the credentials above
-              </li>
-              <li className="mb-2">Create your database tables</li>
-              <li>Start building your app</li>
-            </ol>
+            {user ? (
+              <div className="space-y-3">
+                <div className="p-3 bg-stripe-green-bg rounded border border-stripe-green">
+                  <div className="text-xs text-stripe-green font-medium mb-1">
+                    ✓ Authenticated
+                  </div>
+                  <div className="text-[13px] text-stripe-dark">
+                    Signed in as <strong>{user.email}</strong>
+                  </div>
+                </div>
+                <div className="text-[13px] text-stripe-dark leading-relaxed">
+                  <p className="mb-2">
+                    You can now access protected routes like the{" "}
+                    <Link href="/dashboard" className="text-stripe-purple">
+                      dashboard
+                    </Link>
+                    .
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <ol className="pl-5 text-[13px] text-stripe-dark leading-relaxed">
+                <li className="mb-2">
+                  <Link href="/signup" className="text-stripe-purple">
+                    Create an account
+                  </Link>{" "}
+                  or{" "}
+                  <Link href="/login" className="text-stripe-purple">
+                    sign in
+                  </Link>
+                </li>
+                <li className="mb-2">
+                  Log in to Supabase Studio using the credentials above
+                </li>
+                <li className="mb-2">Create your database tables</li>
+                <li>Start building your app</li>
+              </ol>
+            )}
           </div>
         </div>
       </div>
