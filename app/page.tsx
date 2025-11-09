@@ -1,289 +1,305 @@
-import { createServerClient } from "@/lib/supabase/server";
+import { createServerComponentClient } from "@/lib/supabase/server";
 
-async function checkSupabaseConnection() {
-  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+interface ServiceStatus {
+  name: string;
+  status: "healthy" | "unhealthy" | "unknown";
+  message?: string;
+}
 
-  // Check if environment variables are set
-  if (
-    !supabaseUrl ||
-    !supabaseKey ||
-    supabaseUrl === "http://localhost:8000" ||
-    supabaseKey === "your-service-role-key"
-  ) {
-    return {
-      connected: false,
-      error:
-        "Supabase credentials not configured. Please set NEXT_PUBLIC_SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in your .env file.",
-      url: supabaseUrl || "Not set",
-    };
-  }
+async function getSupabaseStatus(): Promise<{
+  overall: string;
+  healthyCount: number;
+  totalCount: number;
+  services: ServiceStatus[];
+  error?: string;
+}> {
+  const services: ServiceStatus[] = [];
+  const supabase = await createServerComponentClient();
 
+  // Check Auth Service
   try {
-    const supabase = createServerClient();
-
-    // Test connection by making a simple API call to Supabase
-    // Using from() with a non-existent table will return an error, but that means we're connected
-    // If we get a network error, the connection failed
-    const { error } = await supabase
-      .from("_connection_test_")
-      .select("*")
-      .limit(1);
-
-    // If error is about table not found or permission, we're connected (just no table)
-    // If error is about network/connection, we're not connected
-    if (error) {
-      // Check if it's a connection/network error
-      if (
-        error.message.includes("fetch") ||
-        error.message.includes("network") ||
-        error.message.includes("Failed to fetch")
-      ) {
-        return {
-          connected: false,
-          error: `Cannot reach Supabase at ${supabaseUrl}. Please check your NEXT_PUBLIC_SUPABASE_URL.`,
-          url: supabaseUrl,
-        };
-      }
-
-      // Check if it's an authentication error
-      if (
-        error.message.includes("JWT") ||
-        error.message.includes("Invalid API key") ||
-        error.code === "PGRST301"
-      ) {
-        return {
-          connected: false,
-          error:
-            "Supabase connection failed: Invalid API key. Please check your SUPABASE_SERVICE_ROLE_KEY.",
-          url: supabaseUrl,
-        };
-      }
-
-      // Other errors (like table not found) mean we're connected!
-      // This is actually a good sign - it means Supabase responded
-      return {
-        connected: true,
-        error: null,
-        url: supabaseUrl,
-      };
-    }
-
-    // If no error, we're connected
-    return {
-      connected: true,
-      error: null,
-      url: supabaseUrl,
-    };
-  } catch (error) {
-    // Network or other errors
-    return {
-      connected: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Unknown error connecting to Supabase",
-      url: supabaseUrl,
-    };
+    const { error } = await supabase.auth.getUser();
+    const isHealthy =
+      !error ||
+      error.message.includes("Auth session missing") ||
+      error.message.includes("Invalid JWT") ||
+      error.message.includes("JWT expired");
+    services.push({
+      name: "Auth (GoTrue)",
+      status: isHealthy ? "healthy" : "unhealthy",
+      message: isHealthy ? "Service responding" : error?.message,
+    });
+  } catch (err) {
+    services.push({
+      name: "Auth (GoTrue)",
+      status: "unhealthy",
+      message: err instanceof Error ? err.message : "Connection failed",
+    });
   }
+
+  // Check REST API (PostgREST)
+  try {
+    // Check if REST API endpoint responds (401 means it's working, just needs auth)
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:8000";
+    const internalUrl = supabaseUrl
+      .replace("localhost:8000", "kong:8000")
+      .replace("127.0.0.1:8000", "kong:8000");
+    const response = await fetch(`${internalUrl}/rest/v1/`, {
+      method: "GET",
+      headers: {
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+      },
+    });
+    // 401 or 200 means the service is responding
+    services.push({
+      name: "REST API (PostgREST)",
+      status: response.ok || response.status === 401 ? "healthy" : "unhealthy",
+      message:
+        response.ok || response.status === 401
+          ? "Service responding"
+          : `HTTP ${response.status}`,
+    });
+  } catch (err) {
+    services.push({
+      name: "REST API (PostgREST)",
+      status: "unhealthy",
+      message: err instanceof Error ? err.message : "Connection failed",
+    });
+  }
+
+  // Check Database Connection
+  // We check this indirectly via Storage, which requires database connectivity
+  // If Storage works, the database is connected
+  try {
+    const { error: storageError } = await supabase.storage.listBuckets();
+    services.push({
+      name: "Database (PostgreSQL)",
+      status: storageError ? "unhealthy" : "healthy",
+      message: storageError
+        ? storageError.message
+        : "Connected (verified via storage)",
+    });
+  } catch (err) {
+    services.push({
+      name: "Database (PostgreSQL)",
+      status: "unhealthy",
+      message: err instanceof Error ? err.message : "Connection failed",
+    });
+  }
+
+  // Check Storage
+  try {
+    const { data, error } = await supabase.storage.listBuckets();
+    services.push({
+      name: "Storage",
+      status: error ? "unhealthy" : "healthy",
+      message: error ? error.message : "Service responding",
+    });
+  } catch (err) {
+    services.push({
+      name: "Storage",
+      status: "unhealthy",
+      message: err instanceof Error ? err.message : "Connection failed",
+    });
+  }
+
+  // Check Realtime (via REST API check)
+  try {
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:8000";
+    const internalUrl = supabaseUrl
+      .replace("localhost:8000", "kong:8000")
+      .replace("127.0.0.1:8000", "kong:8000");
+    const response = await fetch(`${internalUrl}/realtime/v1/`, {
+      method: "GET",
+      headers: {
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+      },
+    });
+    services.push({
+      name: "Realtime",
+      status: response.ok || response.status === 404 ? "healthy" : "unhealthy",
+      message:
+        response.ok || response.status === 404
+          ? "Service responding"
+          : `HTTP ${response.status}`,
+    });
+  } catch (err) {
+    services.push({
+      name: "Realtime",
+      status: "unhealthy",
+      message: err instanceof Error ? err.message : "Connection failed",
+    });
+  }
+
+  // Check Kong API Gateway
+  try {
+    const supabaseUrl =
+      process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:8000";
+    const internalUrl = supabaseUrl
+      .replace("localhost:8000", "kong:8000")
+      .replace("127.0.0.1:8000", "kong:8000");
+    const response = await fetch(`${internalUrl}/rest/v1/`, {
+      method: "GET",
+      headers: {
+        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
+      },
+    });
+    services.push({
+      name: "API Gateway (Kong)",
+      status: response.ok || response.status === 401 ? "healthy" : "unhealthy",
+      message:
+        response.ok || response.status === 401
+          ? "Service responding"
+          : `HTTP ${response.status}`,
+    });
+  } catch (err) {
+    services.push({
+      name: "API Gateway (Kong)",
+      status: "unhealthy",
+      message: err instanceof Error ? err.message : "Connection failed",
+    });
+  }
+
+  const allHealthy = services.every((s) => s.status === "healthy");
+  const healthyCount = services.filter((s) => s.status === "healthy").length;
+
+  return {
+    overall: allHealthy ? "healthy" : "degraded",
+    healthyCount,
+    totalCount: services.length,
+    services,
+  };
 }
 
 export default async function Home() {
-  const connectionStatus = await checkSupabaseConnection();
+  const status = await getSupabaseStatus();
 
   return (
-    <main
-      style={{
-        minHeight: "100vh",
-        background: "#ffffff",
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        padding: "3rem 1.5rem",
-      }}
-    >
-      <div
-        style={{
-          maxWidth: "900px",
-          width: "100%",
-        }}
-      >
-        {/* Hero Section */}
-        <div
-          style={{
-            textAlign: "center",
-            marginBottom: "4rem",
-          }}
-        >
-          <h1
-            style={{
-              fontSize: "clamp(2.5rem, 5vw, 4rem)",
-              fontWeight: 700,
-              color: "#000000",
-              marginBottom: "1.5rem",
-              letterSpacing: "-0.02em",
-              lineHeight: 1.1,
-            }}
-          >
-            SupaNext
-          </h1>
-          <p
-            style={{
-              fontSize: "1.25rem",
-              color: "#666666",
-              marginBottom: "2rem",
-              fontWeight: 400,
-              lineHeight: 1.6,
-              maxWidth: "600px",
-              margin: "0 auto 2rem",
-            }}
-          >
-            A lightweight, production-ready boilerplate for Next.js and Supabase
-          </p>
-        </div>
+    <main className="py-12 px-6 max-w-6xl mx-auto bg-white">
+      <div className="mb-12">
+        <h1 className="text-2xl font-semibold mb-2 text-stripe-dark tracking-tight">
+          SupaNext
+        </h1>
+        <p className="text-sm text-stripe-gray leading-normal">
+          Next.js + Supabase Docker boilerplate
+        </p>
+      </div>
 
-        {/* Connection Status Card */}
-        <div
-          style={{
-            background: "#ffffff",
-            borderRadius: "8px",
-            padding: "2rem",
-            marginBottom: "2rem",
-            border: "1px solid #e5e5e5",
-            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
-          }}
-        >
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.75rem",
-              marginBottom: "1.5rem",
-            }}
-          >
-            <div
-              style={{
-                width: "8px",
-                height: "8px",
-                borderRadius: "50%",
-                background: connectionStatus.connected ? "#000000" : "#666666",
-                border: "1px solid #000000",
-              }}
-            />
-            <h2
-              style={{
-                fontSize: "1.125rem",
-                fontWeight: 600,
-                color: "#000000",
-                margin: 0,
-              }}
-            >
-              Supabase Connection
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Left Column - Services Status */}
+        <div className="p-5 bg-white border border-stripe-border rounded-md">
+          <div className="flex justify-between items-center mb-5 pb-4 border-b border-stripe-border">
+            <h2 className="text-sm font-semibold text-stripe-dark m-0">
+              Services
             </h2>
+            <span
+              className={`text-xs font-medium px-2 py-1 rounded ${
+                status.overall === "healthy"
+                  ? "text-stripe-green bg-stripe-green-bg"
+                  : status.overall === "degraded"
+                  ? "text-stripe-yellow bg-stripe-yellow-bg"
+                  : "text-stripe-red bg-stripe-red-bg"
+              }`}
+            >
+              {status.healthyCount}/{status.totalCount}
+            </span>
           </div>
 
-          {connectionStatus.connected ? (
+          {status.error ? (
             <div>
-              <p
-                style={{
-                  color: "#000000",
-                  fontWeight: 500,
-                  marginBottom: "0.75rem",
-                  fontSize: "0.9375rem",
-                }}
-              >
-                ✓ Successfully connected
-              </p>
-              <p
-                style={{
-                  fontSize: "0.875rem",
-                  color: "#666666",
-                  marginTop: "0.5rem",
-                  fontFamily: "monospace",
-                }}
-              >
-                {connectionStatus.url}
+              <p className="text-[13px] text-stripe-red mb-2">{status.error}</p>
+              <p className="text-[13px] text-stripe-gray">
+                Make sure Supabase services are running. Check with:{" "}
+                <code>docker compose ps</code>
               </p>
             </div>
           ) : (
-            <div>
-              <p
-                style={{
-                  color: "#000000",
-                  fontWeight: 500,
-                  marginBottom: "0.75rem",
-                  fontSize: "0.9375rem",
-                }}
-              >
-                Connection failed
-              </p>
-              <p
-                style={{
-                  fontSize: "0.875rem",
-                  color: "#666666",
-                  marginTop: "0.5rem",
-                  lineHeight: 1.6,
-                }}
-              >
-                {connectionStatus.error}
-              </p>
-              {connectionStatus.url && connectionStatus.url !== "Not set" && (
-                <p
-                  style={{
-                    fontSize: "0.875rem",
-                    color: "#666666",
-                    marginTop: "0.75rem",
-                    fontFamily: "monospace",
-                  }}
+            <div className="space-y-3">
+              {status.services.map((service: any) => (
+                <div
+                  key={service.name}
+                  className="flex justify-between items-start py-3 border-b border-stripe-bg last:border-0"
                 >
-                  {connectionStatus.url}
-                </p>
-              )}
+                  <div className="flex-1">
+                    <div className="text-[13px] font-medium text-stripe-dark mb-1">
+                      {service.name}
+                    </div>
+                    {service.message && (
+                      <div className="text-xs text-stripe-gray leading-snug">
+                        {service.message}
+                      </div>
+                    )}
+                  </div>
+                  <span
+                    className={`text-sm font-medium ml-4 ${
+                      service.status === "healthy"
+                        ? "text-stripe-green"
+                        : "text-stripe-red"
+                    }`}
+                  >
+                    {service.status === "healthy" ? "●" : "○"}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </div>
 
-        {/* API Endpoint Card */}
-        <div
-          style={{
-            background: "#ffffff",
-            borderRadius: "8px",
-            padding: "1.5rem",
-            border: "1px solid #e5e5e5",
-            boxShadow: "0 1px 3px rgba(0, 0, 0, 0.05)",
-          }}
-        >
-          <h3
-            style={{
-              fontSize: "0.75rem",
-              fontWeight: 600,
-              color: "#000000",
-              marginBottom: "1rem",
-              textTransform: "uppercase",
-              letterSpacing: "0.05em",
-            }}
-          >
-            Available Endpoints
-          </h3>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: "0.75rem",
-              padding: "0.75rem",
-              background: "#f5f5f5",
-              borderRadius: "6px",
-              fontFamily: "monospace",
-              fontSize: "0.875rem",
-              border: "1px solid #e5e5e5",
-            }}
-          >
-            <span style={{ color: "#000000" }}>GET</span>
-            <span style={{ color: "#000000" }}>/api/health</span>
-            <span style={{ color: "#666666", marginLeft: "auto" }}>
-              Health check
-            </span>
+        {/* Right Column - Supabase Studio & Next Steps */}
+        <div className="flex flex-col gap-6">
+          <div className="p-5 bg-white border border-stripe-border rounded-md">
+            <h2 className="text-sm font-semibold text-stripe-dark mb-4">
+              Supabase Studio
+            </h2>
+            <div className="mb-4 p-3 bg-stripe-bg rounded border border-stripe-border">
+              <div className="text-xs text-stripe-gray mb-2">
+                Default credentials
+              </div>
+              <div className="text-[13px] text-stripe-dark leading-relaxed">
+                <div className="mb-1">
+                  <strong>URL:</strong>{" "}
+                  <a
+                    href={
+                      process.env.SUPABASE_PUBLIC_URL || "http://localhost:8000"
+                    }
+                    target="_blank"
+                    className="text-stripe-purple"
+                  >
+                    {process.env.SUPABASE_PUBLIC_URL || "http://localhost:8000"}
+                  </a>
+                </div>
+                <div className="mb-1">
+                  <strong>Username:</strong>{" "}
+                  <code>{process.env.DASHBOARD_USERNAME || "supabase"}</code>
+                </div>
+                <div>
+                  <strong>Password:</strong>{" "}
+                  <code>
+                    {process.env.DASHBOARD_PASSWORD ||
+                      "this_password_is_insecure_and_should_be_updated"}
+                  </code>
+                </div>
+              </div>
+            </div>
+            <div className="text-xs text-stripe-yellow px-3 py-2 bg-stripe-yellow-bg rounded border border-yellow-200">
+              ⚠️ Change these credentials in <code>.env</code> before deploying
+              to production
+            </div>
+          </div>
+
+          <div className="p-5 bg-white border border-stripe-border rounded-md">
+            <h2 className="text-sm font-semibold text-stripe-dark mb-4">
+              Next steps
+            </h2>
+            <ol className="pl-5 text-[13px] text-stripe-dark leading-relaxed">
+              <li className="mb-2">
+                Log in to Supabase Studio using the credentials above
+              </li>
+              <li className="mb-2">Create your database tables</li>
+              <li>Start building your app</li>
+            </ol>
           </div>
         </div>
       </div>

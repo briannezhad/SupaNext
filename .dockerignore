@@ -2,6 +2,8 @@ node_modules
 .next
 .git
 .gitignore
+README.md
+.env
 .env*.local
 .DS_Store
 *.log
@@ -10,4 +12,7 @@ yarn-debug.log*
 yarn-error.log*
 .vscode
 .idea
-
+*.swp
+*.swo
+*~
+supabase-docker/volumes/db/data

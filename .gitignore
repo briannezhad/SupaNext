@@ -4,34 +4,98 @@
 /node_modules
 /.pnp
 .pnp.js
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
 
 # testing
 /coverage
+*.lcov
+.nyc_output
 
 # next.js
 /.next/
 /out/
+next-env.d.ts
 
 # production
 /build
+/dist
 
 # misc
 .DS_Store
 *.pem
+*.log
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
 
 # debug
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # local env files
-.env*.local
 .env
+.env*.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # vercel
 .vercel
 
 # typescript
 *.tsbuildinfo
-next-env.d.ts
+
+# docker
+docker-compose.override.yml
+.dockerignore.local
+
+# Supabase Docker volumes and data
+supabase-docker/volumes/db/data/
+supabase-docker/volumes/storage/
+volumes/
+*.db
+*.sqlite
+*.sqlite3
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.project
+.classpath
+.settings/
+
+# OS files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+.temp/
+
+# Package manager lock files (optional - uncomment if you want to ignore)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
 
