@@ -2,171 +2,97 @@ import { createServerComponentClient } from "@/lib/supabase/server";
 
 interface ServiceStatus {
   name: string;
-  status: "healthy" | "unhealthy" | "unknown";
+  status: "healthy" | "unhealthy";
   message?: string;
 }
 
-async function getSupabaseStatus(): Promise<{
-  overall: string;
-  healthyCount: number;
-  totalCount: number;
-  services: ServiceStatus[];
-  error?: string;
-}> {
-  const services: ServiceStatus[] = [];
+const getInternalUrl = () => {
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:8000";
+  return url
+    .replace("localhost:8000", "kong:8000")
+    .replace("127.0.0.1:8000", "kong:8000");
+};
+
+const checkHttpService = async (
+  path: string,
+  name: string,
+  successCodes: number[] = [200, 401, 404]
+): Promise<ServiceStatus> => {
+  try {
+    const response = await fetch(`${getInternalUrl()}${path}`, {
+      method: "GET",
+      headers: { apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "" },
+    });
+    const isHealthy = successCodes.includes(response.status) || response.ok;
+    return {
+      name,
+      status: isHealthy ? "healthy" : "unhealthy",
+      message: isHealthy ? "Service responding" : `HTTP ${response.status}`,
+    };
+  } catch (err) {
+    return {
+      name,
+      status: "unhealthy",
+      message: err instanceof Error ? err.message : "Connection failed",
+    };
+  }
+};
+
+const checkSupabaseService = async (
+  name: string,
+  checkFn: () => Promise<{ error: any }>,
+  isHealthyFn: (error: any) => boolean,
+  successMsg = "Service responding"
+): Promise<ServiceStatus> => {
+  try {
+    const { error } = await checkFn();
+    const isHealthy = isHealthyFn(error);
+    return {
+      name,
+      status: isHealthy ? "healthy" : "unhealthy",
+      message: isHealthy ? successMsg : error?.message || "Error",
+    };
+  } catch (err) {
+    return {
+      name,
+      status: "unhealthy",
+      message: err instanceof Error ? err.message : "Connection failed",
+    };
+  }
+};
+
+async function getSupabaseStatus() {
   const supabase = await createServerComponentClient();
 
-  // Check Auth Service
-  try {
-    const { error } = await supabase.auth.getUser();
-    const isHealthy =
-      !error ||
-      error.message.includes("Auth session missing") ||
-      error.message.includes("Invalid JWT") ||
-      error.message.includes("JWT expired");
-    services.push({
-      name: "Auth (GoTrue)",
-      status: isHealthy ? "healthy" : "unhealthy",
-      message: isHealthy ? "Service responding" : error?.message,
-    });
-  } catch (err) {
-    services.push({
-      name: "Auth (GoTrue)",
-      status: "unhealthy",
-      message: err instanceof Error ? err.message : "Connection failed",
-    });
-  }
+  const services = await Promise.all([
+    checkSupabaseService(
+      "Auth (GoTrue)",
+      () => supabase.auth.getUser(),
+      (error) =>
+        !error ||
+        error.message?.includes("Auth session missing") ||
+        error.message?.includes("Invalid JWT") ||
+        error.message?.includes("JWT expired")
+    ),
+    checkHttpService("/rest/v1/", "REST API (PostgREST)", [200, 401]),
+    checkSupabaseService(
+      "Database (PostgreSQL)",
+      () => supabase.storage.listBuckets(),
+      (error) => !error,
+      "Connected (verified via storage)"
+    ),
+    checkSupabaseService(
+      "Storage",
+      () => supabase.storage.listBuckets(),
+      (error) => !error
+    ),
+    checkHttpService("/realtime/v1/", "Realtime", [200, 404]),
+    checkHttpService("/rest/v1/", "API Gateway (Kong)", [200, 401]),
+  ]);
 
-  // Check REST API (PostgREST)
-  try {
-    // Check if REST API endpoint responds (401 means it's working, just needs auth)
-    const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:8000";
-    const internalUrl = supabaseUrl
-      .replace("localhost:8000", "kong:8000")
-      .replace("127.0.0.1:8000", "kong:8000");
-    const response = await fetch(`${internalUrl}/rest/v1/`, {
-      method: "GET",
-      headers: {
-        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-      },
-    });
-    // 401 or 200 means the service is responding
-    services.push({
-      name: "REST API (PostgREST)",
-      status: response.ok || response.status === 401 ? "healthy" : "unhealthy",
-      message:
-        response.ok || response.status === 401
-          ? "Service responding"
-          : `HTTP ${response.status}`,
-    });
-  } catch (err) {
-    services.push({
-      name: "REST API (PostgREST)",
-      status: "unhealthy",
-      message: err instanceof Error ? err.message : "Connection failed",
-    });
-  }
-
-  // Check Database Connection
-  // We check this indirectly via Storage, which requires database connectivity
-  // If Storage works, the database is connected
-  try {
-    const { error: storageError } = await supabase.storage.listBuckets();
-    services.push({
-      name: "Database (PostgreSQL)",
-      status: storageError ? "unhealthy" : "healthy",
-      message: storageError
-        ? storageError.message
-        : "Connected (verified via storage)",
-    });
-  } catch (err) {
-    services.push({
-      name: "Database (PostgreSQL)",
-      status: "unhealthy",
-      message: err instanceof Error ? err.message : "Connection failed",
-    });
-  }
-
-  // Check Storage
-  try {
-    const { data, error } = await supabase.storage.listBuckets();
-    services.push({
-      name: "Storage",
-      status: error ? "unhealthy" : "healthy",
-      message: error ? error.message : "Service responding",
-    });
-  } catch (err) {
-    services.push({
-      name: "Storage",
-      status: "unhealthy",
-      message: err instanceof Error ? err.message : "Connection failed",
-    });
-  }
-
-  // Check Realtime (via REST API check)
-  try {
-    const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:8000";
-    const internalUrl = supabaseUrl
-      .replace("localhost:8000", "kong:8000")
-      .replace("127.0.0.1:8000", "kong:8000");
-    const response = await fetch(`${internalUrl}/realtime/v1/`, {
-      method: "GET",
-      headers: {
-        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-      },
-    });
-    services.push({
-      name: "Realtime",
-      status: response.ok || response.status === 404 ? "healthy" : "unhealthy",
-      message:
-        response.ok || response.status === 404
-          ? "Service responding"
-          : `HTTP ${response.status}`,
-    });
-  } catch (err) {
-    services.push({
-      name: "Realtime",
-      status: "unhealthy",
-      message: err instanceof Error ? err.message : "Connection failed",
-    });
-  }
-
-  // Check Kong API Gateway
-  try {
-    const supabaseUrl =
-      process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:8000";
-    const internalUrl = supabaseUrl
-      .replace("localhost:8000", "kong:8000")
-      .replace("127.0.0.1:8000", "kong:8000");
-    const response = await fetch(`${internalUrl}/rest/v1/`, {
-      method: "GET",
-      headers: {
-        apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || "",
-      },
-    });
-    services.push({
-      name: "API Gateway (Kong)",
-      status: response.ok || response.status === 401 ? "healthy" : "unhealthy",
-      message:
-        response.ok || response.status === 401
-          ? "Service responding"
-          : `HTTP ${response.status}`,
-    });
-  } catch (err) {
-    services.push({
-      name: "API Gateway (Kong)",
-      status: "unhealthy",
-      message: err instanceof Error ? err.message : "Connection failed",
-    });
-  }
-
-  const allHealthy = services.every((s) => s.status === "healthy");
   const healthyCount = services.filter((s) => s.status === "healthy").length;
-
   return {
-    overall: allHealthy ? "healthy" : "degraded",
+    overall: healthyCount === services.length ? "healthy" : "degraded",
     healthyCount,
     totalCount: services.length,
     services,
@@ -207,44 +133,34 @@ export default async function Home() {
             </span>
           </div>
 
-          {status.error ? (
-            <div>
-              <p className="text-[13px] text-stripe-red mb-2">{status.error}</p>
-              <p className="text-[13px] text-stripe-gray">
-                Make sure Supabase services are running. Check with:{" "}
-                <code>docker compose ps</code>
-              </p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {status.services.map((service: any) => (
-                <div
-                  key={service.name}
-                  className="flex justify-between items-start py-3 border-b border-stripe-bg last:border-0"
-                >
-                  <div className="flex-1">
-                    <div className="text-[13px] font-medium text-stripe-dark mb-1">
-                      {service.name}
-                    </div>
-                    {service.message && (
-                      <div className="text-xs text-stripe-gray leading-snug">
-                        {service.message}
-                      </div>
-                    )}
+          <div className="space-y-3">
+            {status.services.map((service: any) => (
+              <div
+                key={service.name}
+                className="flex justify-between items-start py-3 border-b border-stripe-bg last:border-0"
+              >
+                <div className="flex-1">
+                  <div className="text-[13px] font-medium text-stripe-dark mb-1">
+                    {service.name}
                   </div>
-                  <span
-                    className={`text-sm font-medium ml-4 ${
-                      service.status === "healthy"
-                        ? "text-stripe-green"
-                        : "text-stripe-red"
-                    }`}
-                  >
-                    {service.status === "healthy" ? "●" : "○"}
-                  </span>
+                  {service.message && (
+                    <div className="text-xs text-stripe-gray leading-snug">
+                      {service.message}
+                    </div>
+                  )}
                 </div>
-              ))}
-            </div>
-          )}
+                <span
+                  className={`text-sm font-medium ml-4 ${
+                    service.status === "healthy"
+                      ? "text-stripe-green"
+                      : "text-stripe-red"
+                  }`}
+                >
+                  {service.status === "healthy" ? "●" : "○"}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
 
         {/* Right Column - Supabase Studio & Next Steps */}
