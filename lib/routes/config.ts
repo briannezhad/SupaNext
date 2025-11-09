@@ -6,9 +6,9 @@
 export const ROUTES = {
   // Public routes
   HOME: "/",
-  LOGIN: "/login",
-  SIGNUP: "/signup",
-  FORGOT_PASSWORD: "/forgot-password",
+  LOGIN: "/auth/login",
+  SIGNUP: "/auth/signup",
+  FORGOT_PASSWORD: "/auth/forgot-password",
 
   // Protected routes
   DASHBOARD: "/dashboard",

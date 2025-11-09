@@ -1,7 +1,5 @@
 import { createServerComponentClient } from "@/lib/supabase/server";
-import Link from "next/link";
-import { signOut } from "@/app/actions/auth";
-import { ROUTES } from "@/lib/routes";
+import { Welcome } from "@/app/components/Welcome";
 
 interface ServiceStatus {
   name: string;
@@ -46,7 +44,7 @@ async function checkHttpService(
       message: err instanceof Error ? err.message : "Connection failed",
     };
   }
-};
+}
 
 /**
  * Checks if a Supabase service is responding.
@@ -72,7 +70,7 @@ async function checkSupabaseService(
       message: err instanceof Error ? err.message : "Connection failed",
     };
   }
-};
+}
 
 /**
  * Checks the status of all Supabase services.
@@ -118,196 +116,24 @@ async function getSupabaseStatus() {
 
 export default async function Home() {
   const supabase = await createServerComponentClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
   const status = await getSupabaseStatus();
 
+  // Get credentials from environment variables (server-side only)
+  const dashboardUsername = process.env.DASHBOARD_USERNAME || "supabase";
+  const dashboardPassword =
+    process.env.DASHBOARD_PASSWORD ||
+    "this_password_is_insecure_and_should_be_updated";
+  const supabaseUrl =
+    process.env.SUPABASE_PUBLIC_URL ||
+    process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    "http://localhost:8000";
+
   return (
-    <main className="py-12 px-6 max-w-6xl mx-auto bg-white">
-      <div className="mb-12 flex justify-between items-start">
-        <div>
-          <h1 className="text-2xl font-semibold mb-2 text-stripe-dark tracking-tight">
-            SupaNext
-          </h1>
-          <p className="text-sm text-stripe-gray leading-normal">
-            Next.js + Supabase
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          {user ? (
-            <>
-              <Link
-                href={ROUTES.DASHBOARD}
-                className="px-4 py-2 text-sm font-medium text-stripe-dark bg-white border border-stripe-border rounded-md hover:bg-stripe-bg focus:outline-none focus:ring-2 focus:ring-stripe-purple focus:ring-offset-2 transition-colors"
-              >
-                Dashboard
-              </Link>
-              <form action={signOut}>
-                <button
-                  type="submit"
-                  className="px-4 py-2 text-sm font-medium text-stripe-dark bg-white border border-stripe-border rounded-md hover:bg-stripe-bg focus:outline-none focus:ring-2 focus:ring-stripe-purple focus:ring-offset-2 transition-colors"
-                >
-                  Sign out
-                </button>
-              </form>
-            </>
-          ) : (
-            <>
-              <Link
-                href={ROUTES.LOGIN}
-                className="px-4 py-2 text-sm font-medium text-stripe-dark bg-white border border-stripe-border rounded-md hover:bg-stripe-bg focus:outline-none focus:ring-2 focus:ring-stripe-purple focus:ring-offset-2 transition-colors"
-              >
-                Sign in
-              </Link>
-              <Link
-                href={ROUTES.SIGNUP}
-                className="px-4 py-2 text-sm font-medium text-white bg-stripe-purple border border-transparent rounded-md hover:bg-opacity-90 focus:outline-none focus:ring-2 focus:ring-stripe-purple focus:ring-offset-2 transition-colors"
-              >
-                Sign up
-              </Link>
-            </>
-          )}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
-        {/* Left Column - Services Status */}
-        <div className="p-5 bg-white border border-stripe-border rounded-md flex flex-col">
-          <div className="flex justify-between items-center mb-5 pb-4 border-b border-stripe-border">
-            <h2 className="text-sm font-semibold text-stripe-dark m-0">
-              Services
-            </h2>
-            <span
-              className={`text-xs font-medium px-2 py-1 rounded ${
-                status.overall === "healthy"
-                  ? "text-stripe-green bg-stripe-green-bg"
-                  : status.overall === "degraded"
-                  ? "text-stripe-yellow bg-stripe-yellow-bg"
-                  : "text-stripe-red bg-stripe-red-bg"
-              }`}
-            >
-              {status.healthyCount}/{status.totalCount}
-            </span>
-          </div>
-
-          <div className="space-y-3">
-            {status.services.map((service: any) => (
-              <div
-                key={service.name}
-                className="flex justify-between items-start py-3 border-b border-stripe-bg last:border-0"
-              >
-                <div className="flex-1">
-                  <div className="text-[13px] font-medium text-stripe-dark mb-1">
-                    {service.name}
-                  </div>
-                  {service.message && (
-                    <div className="text-xs text-stripe-gray leading-snug">
-                      {service.message}
-                    </div>
-                  )}
-                </div>
-                <span
-                  className={`text-sm font-medium ml-4 ${
-                    service.status === "healthy"
-                      ? "text-stripe-green"
-                      : "text-stripe-red"
-                  }`}
-                >
-                  {service.status === "healthy" ? "●" : "○"}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Right Column - Supabase Studio & Next Steps */}
-        <div className="flex flex-col gap-6">
-          <div className="p-5 bg-white border border-stripe-border rounded-md flex-1">
-            <h2 className="text-sm font-semibold text-stripe-dark mb-4">
-              Supabase Studio
-            </h2>
-            <div className="mb-4 p-3 bg-stripe-bg rounded border border-stripe-border">
-              <div className="text-xs text-stripe-gray mb-2">
-                Default credentials
-              </div>
-              <div className="text-[13px] text-stripe-dark leading-relaxed">
-                <div className="mb-1">
-                  <strong>URL:</strong>{" "}
-                  <a
-                    href={
-                      process.env.SUPABASE_PUBLIC_URL || "http://localhost:8000"
-                    }
-                    target="_blank"
-                    className="text-stripe-purple"
-                  >
-                    {process.env.SUPABASE_PUBLIC_URL || "http://localhost:8000"}
-                  </a>
-                </div>
-                <div className="mb-1">
-                  <strong>Username:</strong>{" "}
-                  <code>{process.env.DASHBOARD_USERNAME || "supabase"}</code>
-                </div>
-                <div>
-                  <strong>Password:</strong>{" "}
-                  <code>
-                    {process.env.DASHBOARD_PASSWORD ||
-                      "this_password_is_insecure_and_should_be_updated"}
-                  </code>
-                </div>
-              </div>
-            </div>
-            <div className="text-xs text-stripe-yellow px-3 py-2 bg-stripe-yellow-bg rounded border border-yellow-200">
-              ⚠️ Change these credentials in <code>.env</code> before deploying
-              to production
-            </div>
-          </div>
-
-          <div className="p-5 bg-white border border-stripe-border rounded-md flex-1">
-            <h2 className="text-sm font-semibold text-stripe-dark mb-4">
-              {user ? "Authentication" : "Next steps"}
-            </h2>
-            {user ? (
-              <div className="space-y-3">
-                <div className="p-3 bg-stripe-green-bg rounded border border-stripe-green">
-                  <div className="text-xs text-stripe-green font-medium mb-1">
-                    ✓ Authenticated
-                  </div>
-                  <div className="text-[13px] text-stripe-dark">
-                    Signed in as <strong>{user.email}</strong>
-                  </div>
-                </div>
-                <div className="text-[13px] text-stripe-dark leading-relaxed">
-                  <p className="mb-2">
-                    You can now access protected routes like the{" "}
-                    <Link href={ROUTES.DASHBOARD} className="text-stripe-purple">
-                      dashboard
-                    </Link>
-                    .
-                  </p>
-                </div>
-              </div>
-            ) : (
-              <ol className="pl-5 text-[13px] text-stripe-dark leading-relaxed">
-                <li className="mb-2">
-                  <Link href={ROUTES.SIGNUP} className="text-stripe-purple">
-                    Create an account
-                  </Link>{" "}
-                  or{" "}
-                  <Link href={ROUTES.LOGIN} className="text-stripe-purple">
-                    sign in
-                  </Link>
-                </li>
-                <li className="mb-2">
-                  Log in to Supabase Studio using the credentials above
-                </li>
-                <li className="mb-2">Create your database tables</li>
-                <li>Start building your app</li>
-              </ol>
-            )}
-          </div>
-        </div>
-      </div>
-    </main>
+    <Welcome
+      initialStatus={status}
+      dashboardUsername={dashboardUsername}
+      dashboardPassword={dashboardPassword}
+      supabaseUrl={supabaseUrl}
+    />
   );
 }
