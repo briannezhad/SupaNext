@@ -21,6 +21,7 @@ export default async function LoginPage({
         </div>
 
         <div className="bg-white border border-stripe-border rounded-md p-6">
+          <AuthRedirect redirectTo={searchParams.redirectTo || ROUTES.DASHBOARD} />
           <AuthForm mode="signin" redirectTo={searchParams.redirectTo} />
 
           <div className="mt-6 text-center text-sm text-stripe-gray">
