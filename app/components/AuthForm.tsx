@@ -13,6 +13,11 @@ interface AuthFormWithRedirectProps extends AuthFormProps {
   redirectTo?: string
 }
 
+/**
+ * Reusable authentication form component.
+ * Handles sign in, sign up, and password reset flows.
+ * Uses client-side Supabase authentication for reliable cookie handling.
+ */
 export function AuthForm({ mode, redirectTo }: AuthFormWithRedirectProps) {
   const supabase = createClientComponentClient()
   const [error, setError] = useState<string | null>(null)
@@ -73,7 +78,7 @@ export function AuthForm({ mode, redirectTo }: AuthFormWithRedirectProps) {
           email,
           password,
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
+            emailRedirectTo: `${window.location.origin}${ROUTES.AUTH_CALLBACK}`,
           },
         })
 

@@ -6,6 +6,10 @@ import { createClientComponentClient } from '@/lib/supabase/client'
 import { ROUTES } from '@/lib/routes'
 import type { User } from '@supabase/supabase-js'
 
+/**
+ * Client-side dashboard component with authentication protection.
+ * Handles authentication checks and redirects unauthenticated users.
+ */
 export function DashboardClient() {
   const router = useRouter()
   const supabase = createClientComponentClient()
@@ -39,7 +43,7 @@ export function DashboardClient() {
       if (event === 'SIGNED_OUT') {
         setUser(null)
         setLoading(false)
-        router.push(ROUTES.LOGIN)
+        router.push(ROUTES.HOME)
         return
       }
       
@@ -96,13 +100,13 @@ export function DashboardClient() {
         await new Promise(resolve => setTimeout(resolve, 100))
       }
       
-      // Force a hard redirect to login to ensure clean state
+      // Force a hard redirect to home to ensure clean state
       // Using replace to prevent back button from going to dashboard
-      window.location.replace(ROUTES.LOGIN)
+      window.location.replace(ROUTES.HOME)
     } catch (err) {
       console.error('Sign out error:', err)
-      // Even on error, try to redirect
-      window.location.replace(ROUTES.LOGIN)
+      // Even on error, try to redirect to home
+      window.location.replace(ROUTES.HOME)
     }
   }
 

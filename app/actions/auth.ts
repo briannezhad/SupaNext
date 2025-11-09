@@ -12,58 +12,10 @@ type AuthFormState = {
   redirectTo?: string
 } | null
 
-export async function signUp(prevState: AuthFormState, formData: FormData) {
-  const supabase = await createServerComponentClient()
-
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  }
-
-  const { error } = await supabase.auth.signUp({
-    email: data.email,
-    password: data.password,
-    options: {
-      emailRedirectTo: `${process.env.NEXT_PUBLIC_SITE_URL || 'http://localhost:3000'}${ROUTES.AUTH_CALLBACK}`,
-    },
-  })
-
-  if (error) {
-    return { error: error.message }
-  }
-
-  revalidatePath('/', 'layout')
-  return { success: true }
-}
-
-export async function signIn(prevState: AuthFormState, formData: FormData) {
-  const supabase = await createServerComponentClient()
-
-  const data = {
-    email: formData.get('email') as string,
-    password: formData.get('password') as string,
-  }
-
-  const redirectTo = formData.get('redirectTo') as string | null
-
-  const { error } = await supabase.auth.signInWithPassword({
-    email: data.email,
-    password: data.password,
-  })
-
-  if (error) {
-    return { error: error.message }
-  }
-
-  // Ensure session is refreshed
-  await supabase.auth.getSession()
-
-  revalidatePath('/', 'layout')
-  revalidatePath('/dashboard', 'page')
-  
-  return { success: true, redirectTo: redirectTo || ROUTES.DASHBOARD }
-}
-
+/**
+ * Server action to sign out the current user.
+ * Used by the home page sign out button.
+ */
 export async function signOut() {
   const supabase = await createServerComponentClient()
   
@@ -77,13 +29,17 @@ export async function signOut() {
   revalidatePath('/', 'layout')
   revalidatePath('/dashboard', 'page')
   
-  // Redirect to login
-  redirect(ROUTES.LOGIN)
+  // Redirect to home
+  redirect(ROUTES.HOME)
 }
 
+/**
+ * Server action to send a password reset email.
+ * Note: This is kept for potential future use, but password reset
+ * is currently handled client-side in AuthForm component.
+ */
 export async function resetPassword(prevState: AuthFormState, formData: FormData) {
   const supabase = await createServerComponentClient()
-
   const email = formData.get('email') as string
 
   const { error } = await supabase.auth.resetPasswordForEmail(email, {
@@ -97,14 +53,15 @@ export async function resetPassword(prevState: AuthFormState, formData: FormData
   return { message: 'Password reset email sent' }
 }
 
+/**
+ * Server action to update user password.
+ * Used in the reset password page after email verification.
+ */
 export async function updatePassword(prevState: AuthFormState, formData: FormData) {
   const supabase = await createServerComponentClient()
-
   const password = formData.get('password') as string
 
-  const { error } = await supabase.auth.updateUser({
-    password: password,
-  })
+  const { error } = await supabase.auth.updateUser({ password })
 
   if (error) {
     return { error: error.message }

@@ -1,12 +1,14 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
 import { createClientComponentClient } from '@/lib/supabase/client'
 import { ROUTES } from '@/lib/routes'
 
+/**
+ * Component that automatically redirects authenticated users.
+ * Used on login/signup pages to redirect users who are already logged in.
+ */
 export function AuthRedirect({ redirectTo }: { redirectTo?: string }) {
-  const router = useRouter()
   const supabase = createClientComponentClient()
 
   useEffect(() => {

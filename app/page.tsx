@@ -9,18 +9,25 @@ interface ServiceStatus {
   message?: string;
 }
 
-const getInternalUrl = () => {
+/**
+ * Gets the internal Supabase URL for server-side requests.
+ * Replaces localhost with Docker service name when running in Docker.
+ */
+function getInternalUrl(): string {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL || "http://localhost:8000";
   return url
     .replace("localhost:8000", "kong:8000")
     .replace("127.0.0.1:8000", "kong:8000");
-};
+}
 
-const checkHttpService = async (
+/**
+ * Checks if an HTTP service is responding.
+ */
+async function checkHttpService(
   path: string,
   name: string,
   successCodes: number[] = [200, 401, 404]
-): Promise<ServiceStatus> => {
+): Promise<ServiceStatus> {
   try {
     const response = await fetch(`${getInternalUrl()}${path}`, {
       method: "GET",
@@ -41,12 +48,15 @@ const checkHttpService = async (
   }
 };
 
-const checkSupabaseService = async (
+/**
+ * Checks if a Supabase service is responding.
+ */
+async function checkSupabaseService(
   name: string,
   checkFn: () => Promise<{ error: any }>,
   isHealthyFn: (error: any) => boolean,
   successMsg = "Service responding"
-): Promise<ServiceStatus> => {
+): Promise<ServiceStatus> {
   try {
     const { error } = await checkFn();
     const isHealthy = isHealthyFn(error);
@@ -64,6 +74,10 @@ const checkSupabaseService = async (
   }
 };
 
+/**
+ * Checks the status of all Supabase services.
+ * This demonstrates how to use the Supabase client in server components.
+ */
 async function getSupabaseStatus() {
   const supabase = await createServerComponentClient();
 

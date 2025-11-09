@@ -1,7 +1,13 @@
 import { createServerClient } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
-import { requiresAuth, requiresGuest, getRedirectPath, ROUTES } from '@/lib/routes/config'
+import { getRedirectPath, ROUTES } from '@/lib/routes/config'
 
+/**
+ * Middleware for handling authentication and route protection.
+ * - Refreshes user sessions on every request
+ * - Redirects unauthenticated users from protected routes
+ * - Redirects authenticated users away from auth pages (login/signup)
+ */
 export async function middleware(request: NextRequest) {
   let supabaseResponse = NextResponse.next({
     request,
@@ -25,19 +31,16 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session - this will read cookies and refresh if needed
-  // Call getSession first to ensure cookies are read properly
+  // Refresh session - reads cookies and refreshes if needed
   const {
     data: { session },
   } = await supabase.auth.getSession()
   
-  // Also get user to ensure we have full auth state
   const {
     data: { user },
   } = await supabase.auth.getUser()
 
   const pathname = request.nextUrl.pathname
-  // User is authenticated if we have either a session or a user
   const isAuthenticated = !!(session?.user || user)
 
   // Dashboard uses client-side auth, so allow it through
