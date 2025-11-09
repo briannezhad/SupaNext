@@ -109,7 +109,7 @@ export default async function Home() {
           SupaNext
         </h1>
         <p className="text-sm text-stripe-gray leading-normal">
-          Next.js + Supabase Docker boilerplate
+          Next.js + Supabase
         </p>
       </div>
 
