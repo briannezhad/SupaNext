@@ -34,6 +34,7 @@ export function Welcome({
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [isSigningOut, setIsSigningOut] = useState(false);
+  const [apiWorking, setApiWorking] = useState(false);
 
   useEffect(() => {
     const checkAuth = async () => {
@@ -64,6 +65,26 @@ export function Welcome({
       subscription.unsubscribe();
     };
   }, [supabase]);
+
+  // Check if API works
+  useEffect(() => {
+    const checkApi = async () => {
+      try {
+        const response = await fetch("/api/status");
+        if (response.ok) {
+          const data = await response.json();
+          setApiWorking(data.success === true);
+        } else {
+          setApiWorking(false);
+        }
+      } catch (error) {
+        console.error("Error checking API:", error);
+        setApiWorking(false);
+      }
+    };
+
+    checkApi();
+  }, []);
 
   const handleSignOut = async () => {
     setIsSigningOut(true);
@@ -306,6 +327,30 @@ export function Welcome({
                 <li>Start building your app</li>
               </ol>
             )}
+          </div>
+
+          {/* API Status */}
+          <div className="p-5 bg-white border border-stripe-border rounded-md flex-1">
+            <h2 className="text-sm font-semibold text-stripe-dark mb-4">
+              API Status
+            </h2>
+            <div className="p-3 bg-stripe-bg rounded border border-stripe-border">
+              {apiWorking ? (
+                <div className="flex items-center gap-2">
+                  <span className="text-stripe-green text-sm">●</span>
+                  <span className="text-sm text-stripe-dark">
+                    API is working
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <span className="text-stripe-gray text-sm">○</span>
+                  <span className="text-sm text-stripe-gray">
+                    Checking API...
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       </div>
